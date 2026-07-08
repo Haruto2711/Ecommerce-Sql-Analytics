@@ -163,4 +163,48 @@ group by Category;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #211] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chào bạn, bộ phận kế toán cần thống kê tổng doanh thu (Total Revenue = Quantity * UnitPrice) 
+--  của từng mã đơn hàng (OrderID) trong bảng OrderDetails. 
+--  Lưu ý: Chỉ lấy các đơn hàng có tổng doanh thu từ 500 USD trở lên."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select OrderID, sum(Quantity * UnitPrice) as 'Revenue'
+from orderdetails
+group by OrderID
+having sum(Quantity * UnitPrice) >= 500;
+
+-- --------------------------------------------------------------------
+-- [TICKET #212] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn nghiên cứu thói quen của thế hệ trẻ. Hãy thống kê 
+--  số lượng khách hàng tại mỗi thành phố (City), nhưng chỉ đếm những 
+--  khách hàng từ 25 tuổi trở xuống (Age <= 25)."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select city, count(*) as 'Number customer'
+from customers 
+where age <= 25
+group by city;
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #213] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào team Data, nhờ bạn thống kê số lượng đơn hàng cụ thể theo từng 
+--  trạng thái đơn hàng (Status) trong bảng Orders. 
+--  Lưu ý: Chỉ hiển thị các trạng thái đơn hàng có từ 3 đơn trở lên, 
+--  đồng thời sắp xếp giảm dần theo số lượng đơn hàng."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select status,count(*) as 'Total Order'
+from orders
+group by status
+having count(*) >= 3
+order by count(*) desc;
+
 
