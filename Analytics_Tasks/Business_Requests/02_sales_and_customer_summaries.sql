@@ -114,3 +114,53 @@ group by ProductID
 having sum(Quantity) > 2;
 
 
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #208] (Yêu cầu từ Bộ phận Chăm sóc Khách hàng - CS Team)
+-- "Chào team Data, chúng tôi muốn thống kê độ tuổi trung bình của khách hàng 
+--  tại từng thành phố (City), nhưng chỉ tính những khách hàng Nữ (Gender = 'Female'). 
+--  Bạn giúp chúng tôi nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+Select City, avg(Age) as "Average age of customer"
+from customers 
+Where Gender = 'Female'
+Group by City;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #209] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Để chuẩn bị chiến dịch tri ân lớn, chúng tôi cần tìm các thành phố (City) 
+--  có tổng số khách hàng từ 2 người trở lên, đồng thời sắp xếp danh sách 
+--  các thành phố này theo số lượng khách hàng giảm dần."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select city,count(*) as 'Total Customer'
+From customers
+Group by city
+Having Count(*) >= 2
+Order by count(*) desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #210] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chúng tôi muốn rà soát danh mục hàng hóa. Vui lòng cho biết giá bán 
+--  cao nhất (Max Price) của từng danh mục sản phẩm (Category), nhưng chỉ 
+--  lọc những sản phẩm có số lượng tồn kho (Stock) lớn hơn 50 nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select Category, max(Price) as 'Highest price'
+From products
+Where Stock > 50
+group by Category;
+
+
+
+
+
