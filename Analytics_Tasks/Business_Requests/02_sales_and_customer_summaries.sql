@@ -66,3 +66,51 @@ from customers
 group by city
 having count(*) >= 2;
 
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #205] (Yêu cầu từ Trưởng phòng Kinh doanh - Sales Lead)
+-- "Chúng tôi cần theo dõi hiệu suất giá của từng danh mục sản phẩm. 
+--  Bạn hãy tính giúp tôi giá bán trung bình (Average Price) và giá bán 
+--  cao nhất (Maximum Price) của các sản phẩm trong mỗi danh mục (Category) nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select category, avg(price) as 'Average Price', max(price) as 'Highest price'
+from products
+group by category;
+
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #206] (Yêu cầu từ Bộ phận Vận hành - Operations Team)
+-- "Chào bạn, để đánh giá hiệu quả xử lý đơn hàng, bạn hãy thống kê 
+--  số lượng đơn hàng cụ thể theo từng trạng thái đơn hàng (Status) 
+--  trong bảng Orders nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select status, count(*)
+from Orders
+group by status;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #207] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead)
+-- "Chào em, để chuẩn bị báo cáo doanh số nâng cao, em hãy thống kê 
+--  tổng số lượng sản phẩm bán ra (Quantity) của từng mã sản phẩm (ProductID) 
+--  trong bảng OrderDetails. Lưu ý: Chỉ hiển thị các sản phẩm có tổng số 
+--  lượng bán ra lớn hơn 2."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select ProductID, sum(Quantity) as 'Total quantity'
+from OrderDetails
+group by ProductID
+having sum(Quantity) > 2;
+
+
