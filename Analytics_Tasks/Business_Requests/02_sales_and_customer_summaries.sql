@@ -114,3 +114,97 @@ group by ProductID
 having sum(Quantity) > 2;
 
 
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #208] (Yêu cầu từ Bộ phận Chăm sóc Khách hàng - CS Team)
+-- "Chào team Data, chúng tôi muốn thống kê độ tuổi trung bình của khách hàng 
+--  tại từng thành phố (City), nhưng chỉ tính những khách hàng Nữ (Gender = 'Female'). 
+--  Bạn giúp chúng tôi nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+Select City, avg(Age) as "Average age of customer"
+from customers 
+Where Gender = 'Female'
+Group by City;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #209] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Để chuẩn bị chiến dịch tri ân lớn, chúng tôi cần tìm các thành phố (City) 
+--  có tổng số khách hàng từ 2 người trở lên, đồng thời sắp xếp danh sách 
+--  các thành phố này theo số lượng khách hàng giảm dần."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select city,count(*) as 'Total Customer'
+From customers
+Group by city
+Having Count(*) >= 2
+Order by count(*) desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #210] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chúng tôi muốn rà soát danh mục hàng hóa. Vui lòng cho biết giá bán 
+--  cao nhất (Max Price) của từng danh mục sản phẩm (Category), nhưng chỉ 
+--  lọc những sản phẩm có số lượng tồn kho (Stock) lớn hơn 50 nhé."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select Category, max(Price) as 'Highest price'
+From products
+Where Stock > 50
+group by Category;
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #211] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chào bạn, bộ phận kế toán cần thống kê tổng doanh thu (Total Revenue = Quantity * UnitPrice) 
+--  của từng mã đơn hàng (OrderID) trong bảng OrderDetails. 
+--  Lưu ý: Chỉ lấy các đơn hàng có tổng doanh thu từ 500 USD trở lên."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select OrderID, sum(Quantity * UnitPrice) as 'Revenue'
+from orderdetails
+group by OrderID
+having sum(Quantity * UnitPrice) >= 500;
+
+-- --------------------------------------------------------------------
+-- [TICKET #212] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn nghiên cứu thói quen của thế hệ trẻ. Hãy thống kê 
+--  số lượng khách hàng tại mỗi thành phố (City), nhưng chỉ đếm những 
+--  khách hàng từ 25 tuổi trở xuống (Age <= 25)."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select city, count(*) as 'Number customer'
+from customers 
+where age <= 25
+group by city;
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #213] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào team Data, nhờ bạn thống kê số lượng đơn hàng cụ thể theo từng 
+--  trạng thái đơn hàng (Status) trong bảng Orders. 
+--  Lưu ý: Chỉ hiển thị các trạng thái đơn hàng có từ 3 đơn trở lên, 
+--  đồng thời sắp xếp giảm dần theo số lượng đơn hàng."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select status,count(*) as 'Total Order'
+from orders
+group by status
+having count(*) >= 3
+order by count(*) desc;
+
+
