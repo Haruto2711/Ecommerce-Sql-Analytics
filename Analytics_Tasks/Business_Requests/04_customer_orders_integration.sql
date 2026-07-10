@@ -95,3 +95,72 @@ left join orders o
 on c.CustomerID = o.CustomerID
 where o.OrderID is null;
 
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #405] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào team Data, chúng tôi muốn biết tổng số tiền (Total Spent) mà từng 
+--  khách hàng đã thực tế mua tại cửa hàng (không phân biệt trạng thái đơn hàng). 
+--  Hãy hiển thị: Tên khách hàng (CustomerName), Email (Email), và Tổng số tiền 
+--  đã mua (đặt tên là TotalSpent). Sắp xếp danh sách theo tổng tiền giảm dần."
+--  Gợi ý: Ghép 3 bảng Customers, Orders, và OrderDetails. 
+--        Sau đó GROUP BY Customers.CustomerID (hoặc CustomerName, Email) 
+--        và tính SUM(Quantity * UnitPrice).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select c.CustomerName, c.Email, sum(od.Quantity * od.UnitPrice) as 'TotalSpent'
+from customers c
+inner join orders o
+on c.CustomerID = o.CustomerID
+inner join orderdetails od
+on o.OrderID = od.OrderID
+group by c.CustomerID, c.CustomerName, c.Email
+order by TotalSpent desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #406] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn thống kê số lượng sản phẩm bán ra theo từng Danh mục sản phẩm 
+--  (Category) tại từng Thành phố (City) của khách hàng để tối ưu hóa quảng cáo. 
+--  Hãy trích xuất báo cáo gồm: City, Category, và Tổng số lượng sản phẩm đã bán 
+--  (đặt tên là TotalQuantitySold)."
+--  Gợi ý: Ghép 4 bảng Customers, Orders, OrderDetails, và Products. 
+--        Sau đó GROUP BY c.City, p.Category và tính SUM(od.Quantity).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select c.City, p.Category, sum(od.Quantity) as 'TotalQuantitySold'
+from customers c
+inner join orders o
+on c.CustomerID = o.CustomerID
+inner join orderdetails od
+on o.OrderID = od.OrderID
+inner join products p
+on od.ProductID = p.ProductID
+group by c.City,p.Category;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #407] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chào bạn, hãy liệt kê toàn bộ các sản phẩm có trong hệ thống (gồm ProductID, 
+--  ProductName, Category), kèm theo tổng số lượng đã bán của sản phẩm đó. 
+--  Lưu ý: Phải hiển thị đầy đủ tất cả các sản phẩm có trong kho, kể cả những 
+--  sản phẩm chưa từng được ai mua (với tổng số lượng bán hiển thị là 0 hoặc NULL)."
+--  Gợi ý: Sử dụng LEFT JOIN từ Products sang OrderDetails qua ProductID. 
+--        Sau đó GROUP BY Products.ProductID và tính SUM(od.Quantity) hoặc 
+--        dùng COALESCE(SUM(od.Quantity), 0) để hiển thị số 0 thay vì NULL.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select p.ProductID, p.ProductName,p.Category, coalesce(sum(od.Quantity), 0) as 'Total Quantity'
+from Products p
+left join orderdetails od
+on p.ProductID = od.ProductID
+group by p.ProductID,p.ProductName,p.Category;
+
+
+
