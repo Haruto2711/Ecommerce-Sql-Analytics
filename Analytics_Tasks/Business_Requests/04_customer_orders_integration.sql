@@ -231,4 +231,81 @@ where c.City = 'HCM';
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #411] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào team Data, chúng tôi muốn đo lường tốc độ mua hàng của người dùng. 
+--  Hãy liệt kê các đơn hàng đã được giao thành công (Status = 'Shipped'), hiển thị: 
+--  Tên khách hàng (CustomerName), Thành phố (City), Mã đơn hàng (OrderID), Ngày đặt hàng (OrderDate), 
+--  và Số ngày chênh lệch từ lúc đăng ký tài khoản (JoinDate) đến lúc đặt hàng (OrderDate) 
+--  (đặt tên cột là DaysFromJoinToOrder). 
+--  Sắp xếp danh sách theo số ngày chênh lệch tăng dần (ASC)."
+--  Gợi ý: Ghép Customers và Orders qua CustomerID. Lọc Status = 'Shipped'. 
+--        Sử dụng hàm DATEDIFF(OrderDate, JoinDate) để tính số ngày chênh lệch.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select c.CustomerName,c.City,o.OrderID, o.OrderDate, DATEDIFF(o.OrderDate, c.JoinDate) as 'DaysFromJoinToOrder'
+from customers c
+inner join orders o
+on c.CustomerID = o.CustomerID
+where o.status = 'Shipped'
+order by DaysFromJoinToOrder asc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #412] (Yêu cầu từ Bộ phận Kho vận - Logistics Team)
+-- "Chúng tôi muốn đánh giá lượng tiêu thụ của các mặt hàng Thời trang. 
+--  Hãy thống kê tổng số lượng đã bán được (TotalSold) và số lượng tồn kho (Stock) 
+--  của các sản phẩm thuộc danh mục Thời trang ('Clothes' hoặc 'Shoes'). 
+--  Báo cáo cần hiển thị: Tên sản phẩm (ProductName), Danh mục sản phẩm (Category), 
+--  Tổng số lượng đã bán, và Số lượng tồn kho. 
+--  Sắp xếp danh sách theo tổng số lượng bán được giảm dần (DESC)."
+--  Gợi ý: Ghép Products và OrderDetails qua ProductID, lọc Category IN ('Clothes', 'Shoes'), 
+--        gom nhóm theo sản phẩm để tính SUM(od.Quantity).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select p.ProductName, p.Category, sum(od.Quantity) as 'TotalSold', p.Stock
+from products p
+inner join orderdetails od
+on p.ProductID = od.ProductID
+where Category IN ('Clothes', 'Shoes')
+group by p.ProductName, p.Category,p.Stock
+order by TotalSold desc;
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #413] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead - Mức độ Nâng cao)
+-- "Hãy lập báo cáo hiệu suất doanh thu theo từng thành phố (City) bao gồm: 
+--  Tên thành phố, Tổng số khách hàng thực tế sống tại đó (đặt tên là TotalCustomers), 
+--  và Tổng doanh thu thực tế thu được (đặt tên là TotalCityRevenue - không tính đơn hàng bị 'Cancelled'). 
+--  Sắp xếp danh sách theo tổng doanh thu giảm dần (DESC)."
+--  Gợi ý: 
+--  1. Sử dụng LEFT JOIN từ Customers sang Orders và OrderDetails để giữ lại tất cả khách hàng/thành phố.
+--  2. Lọc loại bỏ đơn hàng bị hủy ở WHERE: (o.Status <> 'Cancelled' OR o.OrderID IS NULL).
+--  3. Sử dụng COUNT(DISTINCT c.CustomerID) để đếm số khách hàng thực tế (tránh bị đếm lặp do phép join).
+--  4. Sử dụng COALESCE(SUM(od.Quantity * od.UnitPrice), 0) để tính doanh thu.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select c.City, count(distinct c.CustomerID) as 'TotalCustomers',
+COALESCE(SUM(od.Quantity * od.UnitPrice), 0) as 'TotalCityRevenue'
+from Customers c
+left join Orders o 
+on c.CustomerID = o.CustomerID
+left join orderdetails od
+on o.OrderID = od.OrderID
+where o.Status != 'Cancelled' OR o.OrderID is null
+group by c.City
+order by TotalCityRevenue desc;
+
+
+
+
+
+
+
 
