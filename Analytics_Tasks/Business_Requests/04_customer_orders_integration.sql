@@ -164,3 +164,71 @@ group by p.ProductID,p.ProductName,p.Category;
 
 
 
+
+-- --------------------------------------------------------------------
+-- [TICKET #408] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead)
+-- "Chào em, để phục vụ đánh giá hiệu quả của từng danh mục sản phẩm, 
+--  em hãy liệt kê danh sách toàn bộ các Danh mục sản phẩm (Category) 
+--  kèm theo tổng số đơn hàng (đặt tên là TotalOrders) đã chứa sản phẩm thuộc danh mục đó. 
+--  Sắp xếp danh sách theo số lượng đơn hàng giảm dần."
+--  Gợi ý: Ghép Products và OrderDetails qua ProductID, gom nhóm theo Category 
+--        và tính COUNT(DISTINCT OrderID) để đếm số lượng đơn hàng không trùng lặp.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select p.category, count(distinct od.OrderID) as 'TotalOrders'
+from Products p
+inner join orderdetails od
+on p.ProductID = od.ProductID
+group by p.category
+order by TotalOrders desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #409] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Hãy tính giá trị trung bình của mỗi dòng sản phẩm bán ra (đặt tên là AverageLineValue) 
+--  cho từng danh mục sản phẩm (Category) được mua bởi các khách hàng sống tại Hà Nội (City = 'Hanoi')."
+--  Gợi ý: Ghép 4 bảng Products, OrderDetails, Orders, và Customers. 
+--        Lọc điều kiện City = 'Hanoi' ở WHERE, gom nhóm theo Category 
+--        và tính AVG(od.Quantity * od.UnitPrice).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select p.Category,c.city, round(avg(od.Quantity * od.UnitPrice),1) as 'AverageLineValue'
+from products p
+inner join orderdetails od
+on p.ProductID = od.ProductID
+inner join orders o
+on od.OrderID =o.OrderID
+inner join customers c
+on o.CustomerID = c.CustomerID
+where c.City = 'Hanoi'
+group by p.Category;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #410] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chúng tôi muốn kiểm tra tính toàn vẹn của dữ liệu đơn hàng. Hãy liệt kê tất cả 
+--  các đơn hàng trong hệ thống (gồm OrderID, OrderDate, Status) của các khách hàng 
+--  sống tại thành phố HCM kèm theo mã chi tiết đơn hàng (OrderDetailID) của họ 
+--  nếu có. Nếu có đơn hàng nào không có chi tiết đơn hàng, cột OrderDetailID sẽ hiển thị NULL."
+--  Gợi ý: Ghép bảng Customers và Orders (INNER JOIN vì mỗi đơn hàng luôn thuộc về một khách hàng), 
+--        sau đó ghép tiếp sang OrderDetails bằng LEFT JOIN để giữ lại các đơn hàng 
+--        không có chi tiết sản phẩm. Lọc điều kiện City = 'HCM' ở WHERE.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select o.OrderID, o.OrderDate,o.Status, od.OrderDetailID,c.City
+from customers c
+inner join orders o
+on c.CustomerID = o.CustomerID
+left join OrderDetails od
+on o.OrderID = od.OrderID
+where c.City = 'HCM';
+
+
+
+
+
