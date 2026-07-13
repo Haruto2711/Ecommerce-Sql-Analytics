@@ -305,6 +305,76 @@ order by TotalCityRevenue desc;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #414] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào bạn, hãy thống kê tổng số lượng sản phẩm bán được (TotalQuantitySold) 
+--  của từng danh mục sản phẩm (Category) đối với các đơn hàng đã giao thành công 
+--  (Status = 'Shipped'). Sắp xếp danh sách theo tổng số lượng bán được giảm dần."
+--  Gợi ý: Ghép 3 bảng Products, OrderDetails, và Orders. 
+--        Lọc Status = 'Shipped' ở WHERE, gom nhóm theo Category và tính SUM(od.Quantity).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select p.Category, sum(od.Quantity) as 'TotalQuantitySold' 
+from Products p 
+inner join OrderDetails od
+on p.ProductID = od.ProductID
+inner join orders o
+on od.OrderID = o.OrderID
+where o.status = 'Shipped'
+group by p.Category
+order by TotalQuantitySold desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #415] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn nghiên cứu độ tuổi của khách hàng mua sản phẩm Thời trang. 
+--  Hãy tính độ tuổi trung bình (AverageAge) và độ tuổi nhỏ nhất (MinAge) 
+--  của các khách hàng đã từng mua sản phẩm thuộc danh mục 'Clothes' hoặc 'Shoes' 
+--  theo từng thành phố (City)."
+--  Gợi ý: Ghép 4 bảng Customers, Orders, OrderDetails, và Products. 
+--        Lọc Category IN ('Clothes', 'Shoes') ở WHERE, gom nhóm theo City 
+--        và tính AVG(c.Age), MIN(c.Age).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select avg(c.Age) as 'Average age', min(c.age) as 'Min age', c.City
+from Customers c
+inner join Orders o 
+on c.CustomerID = o.CustomerID
+inner join orderdetails	od 
+on o.OrderID = od.OrderID
+inner join products p
+on od.ProductID = p.ProductID
+where p.Category IN ('Clothes', 'Shoes')
+group by c.City;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #416] (Yêu cầu từ Bộ phận Kho vận - Logistics Team)
+-- "Hãy liệt kê toàn bộ các sản phẩm có trong hệ thống (gồm ProductID, ProductName, Category) 
+--  kèm theo tổng số lượng đơn hàng khác nhau (TotalOrdersCount) đã mua sản phẩm đó. 
+--  Phải hiển thị đầy đủ tất cả sản phẩm, kể cả những sản phẩm chưa từng được ai mua 
+--  (với tổng số đơn hàng là 0)."
+--  Gợi ý: Sử dụng LEFT JOIN từ Products sang OrderDetails qua ProductID. 
+--        Gom nhóm theo ProductID, ProductName, Category và tính COUNT(DISTINCT od.OrderID). 
+--        Dùng COALESCE(..., 0) để hiển thị số 0 cho sản phẩm chưa có đơn hàng.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+select p.ProductID, p.ProductName, p.Category,  COALESCE(COUNT(DISTINCT od.OrderID), 0) AS TotalOrdersCount
+from Products p
+left join orderdetails od
+on p.ProductID = od.ProductID
+group by  p.ProductID, p.ProductName, p.Category;
+
+
+
+
+
 
 
 
