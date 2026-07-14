@@ -103,3 +103,83 @@ where c.JoinDate >= '2026-01-01'
 group by c.CustomerID,c.CustomerName,c.JoinDate
 order by c.JoinDate asc;
 
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #604] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào bạn, hãy thống kê tổng doanh thu thực tế (TotalRevenue) của mỗi danh mục sản phẩm 
+--  (Category) bán ra cho các khách hàng sống tại thành phố HCM hoặc Đà Nẵng (Da Nang). 
+--  Lưu ý: Chỉ tính các đơn hàng đã được giao thành công (Status = 'Shipped') và chỉ hiển thị 
+--  các danh mục sản phẩm đem lại tổng doanh số từ 500 USD trở lên."
+--  Gợi ý: Ghép 4 bảng Products, OrderDetails, Orders, và Customers. 
+--        Lọc City IN ('HCM', 'Da Nang') VÀ Status = 'Shipped' ở WHERE.
+--        Gom nhóm theo Category và tính SUM(od.Quantity * od.UnitPrice).
+--        Lọc nhóm ở HAVING: Tổng doanh thu >= 500.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select p.Category, sum(od.Quantity * od.UnitPrice) as TotalRevenue
+from products p
+inner join orderdetails od
+on p.ProductID = od.ProductID
+inner join orders o
+on od.OrderID = o.OrderID
+inner join Customers c
+on o.CustomerID = c.CustomerID
+where city in ('HCM', 'Da Nang') and status = 'Shipped'
+group by p.Category
+Having TotalRevenue >= 500;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #605] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn đánh giá thói quen mua sắm của nhóm khách hàng trẻ tuổi tại Hà Nội. 
+--  Hãy tính tổng số lượng sản phẩm đã mua (TotalQuantitySold) của từng khách hàng sống tại Hanoi 
+--  và có độ tuổi từ 30 trở xuống (Age <= 30).
+--  Lưu ý: Phải hiển thị đầy đủ tất cả khách hàng thỏa mãn điều kiện trên, kể cả những người 
+--  chưa từng mua bất kỳ đơn hàng nào (với số lượng sản phẩm hiển thị là 0). 
+--  Hiển thị các thông tin: Tên khách hàng (CustomerName), Email, Độ tuổi (Age), và Tổng số lượng đã mua. 
+--  Sắp xếp danh sách theo độ tuổi tăng dần (ASC)."
+--  Gợi ý: Dùng LEFT JOIN từ Customers sang Orders, ghép tiếp sang OrderDetails qua LEFT JOIN. 
+--        Lọc City = 'Hanoi' VÀ Age <= 30 ở WHERE. Gom nhóm theo khách hàng và 
+--        tính COALESCE(SUM(od.Quantity), 0).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+select c.CustomerName,c.Email,c.Age,coalesce(sum(od.Quantity),0) as TotalQuantitySold
+from Customers c
+left join orders o
+on c.CustomerID = o.CustomerID
+left join orderdetails od
+on o.OrderID = od.OrderID
+Where c.City = 'Hanoi' and c.Age <= 30
+group by c.CustomerID, c.CustomerName, c.Email, c.Age
+order by c.Age asc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #606] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào team Data, để đo lường tốc độ giao hàng, bạn hãy liệt kê các đơn hàng giao thành công 
+--  (Status = 'Shipped') được đặt từ ngày 01/01/2026 trở đi (OrderDate >= '2026-01-01').
+--  Yêu cầu hiển thị: Mã đơn hàng (OrderID), Ngày đặt hàng (OrderDate), Ngày khách hàng gia nhập (JoinDate), 
+--  Tên khách hàng (CustomerName), và Số ngày chênh lệch từ ngày khách gia nhập đến ngày đặt hàng 
+--  (đặt tên cột là DaysFromJoinToOrder). 
+--  Sắp xếp danh sách theo số ngày chênh lệch giảm dần (DESC)."
+--  Gợi ý: Ghép Orders và Customers qua CustomerID. Lọc Status = 'Shipped' VÀ OrderDate >= '2026-01-01' ở WHERE. 
+--        Tính DATEDIFF(OrderDate, JoinDate) và sắp xếp ở ORDER BY.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select o.OrderID, o.OrderDate, c.JoinDate,c.CustomerName, datediff(o.OrderDate,c.JoinDate) as DaysFromJoinToOrder
+from orders o
+inner join customers c
+on o.CustomerID = c.CustomerID
+where o.status = 'Shipped' and o.OrderDate >= '2026-01-01'
+order by DaysFromJoinToOrder desc;
+
+
+
+
