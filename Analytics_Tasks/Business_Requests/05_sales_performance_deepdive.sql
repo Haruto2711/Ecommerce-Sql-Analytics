@@ -85,3 +85,92 @@ LEFT JOIN CustomerSpending cs ON c.CustomerID = cs.CustomerID
 ORDER BY TotalSpent DESC;
 
 
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #504] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào bạn, hãy tìm tất cả các khách hàng đã từng đặt ít nhất một mặt hàng 
+--  có giá trị dòng sản phẩm đơn lẻ (Thành tiền của dòng đó) lớn hơn giá trị dòng sản phẩm 
+--  trung bình của toàn bộ hệ thống nhé.
+--  Hiển thị thông tin: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Sử dụng truy vấn con tính giá trị dòng trung bình: SELECT AVG(Quantity * UnitPrice) FROM OrderDetails.
+--  2. Sử dụng truy vấn con thứ hai để tìm CustomerID từ các đơn hàng có dòng sản phẩm vượt giá trị trung bình trên.
+--  3. Sử dụng WHERE CustomerID IN (...) ở truy vấn chính.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+SELECT CustomerID, CustomerName, Email
+FROM Customers
+WHERE CustomerID IN (
+    SELECT o.CustomerID
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE od.Quantity * od.UnitPrice > (
+        SELECT AVG(Quantity * UnitPrice) FROM OrderDetails
+    )
+);
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #505] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn lọc ra các sản phẩm thuộc danh mục Thời trang ('Clothes' hoặc 'Shoes') 
+--  nhưng chưa từng được mua bởi bất kỳ khách hàng nào sống tại thành phố Hà Nội (Hanoi). 
+--  Hãy hiển thị: Mã sản phẩm (ProductID), Tên sản phẩm (ProductName), Danh mục (Category), và Giá bán (Price)."
+--  Gợi ý:
+--  1. Sử dụng WHERE Category IN ('Clothes', 'Shoes') để lọc sản phẩm thời trang.
+--  2. Sử dụng AND ProductID NOT IN (SELECT od.ProductID FROM OrderDetails od INNER JOIN Orders o ON od.OrderID = o.OrderID INNER JOIN Customers c ON o.CustomerID = c.CustomerID WHERE c.City = 'Hanoi') để loại trừ sản phẩm đã được mua bởi khách ở Hanoi.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+SELECT ProductID, ProductName, Category, Price
+From products 
+where Category IN ('Clothes', 'Shoes')
+And ProductID NOT IN (
+Select od.ProductID 
+from OrderDetails od
+inner join Orders o ON od.OrderID = o.OrderID 
+INNER JOIN Customers c ON o.CustomerID = c.CustomerID 
+WHERE c.City = 'Hanoi');
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #506] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead)
+-- "Chào em, hãy lập báo cáo hiển thị tổng số lượng sản phẩm bán được (TotalSold) 
+--  của từng Danh mục sản phẩm (Category) đối với các đơn hàng đã giao thành công (Status = 'Shipped'). 
+--  Yêu cầu: Sử dụng CTE để tính tổng số lượng sản phẩm bán được theo từng ProductID trước, 
+--  sau đó ở truy vấn chính, liên kết bảng Products với CTE này để gom nhóm theo Category và 
+--  tính tổng số lượng bán được của danh mục đó. Sắp xếp kết quả theo tổng số lượng bán giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (ProductSales) tính tổng số lượng bán theo ProductID:
+--     WITH ProductSales AS (
+--         SELECT od.ProductID, SUM(od.Quantity) AS QuantitySold
+--         FROM Orders o
+--         INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+--         WHERE o.Status = 'Shipped'
+--         GROUP BY od.ProductID
+--     )
+--  2. Truy vấn chính: INNER JOIN từ Products sang CTE ProductSales qua ProductID.
+--  3. Gom nhóm theo Category và tính SUM(ps.QuantitySold) làm TotalSold. Sắp xếp giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH ProductSales AS (
+    SELECT od.ProductID, SUM(od.Quantity) AS QuantitySold
+      FROM Orders o
+      INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+      WHERE o.Status = 'Shipped'
+       GROUP BY od.ProductID
+     )
+     Select p.Category, sum(ps.QuantitySold) as TotalSold
+     from products p 
+     inner join ProductSales ps
+     on p.ProductID = ps.ProductID
+     group by p.Category 
+     order by TotalSold desc;
+
+
+
+
