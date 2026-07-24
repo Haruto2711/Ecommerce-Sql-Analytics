@@ -261,4 +261,60 @@ ORDER BY c.CustomerName ASC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #610] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào bạn, để đo lường sức mua của từng khách hàng tại Hà Nội đối với mặt hàng công nghệ. 
+--  Hãy thống kê tổng số tiền chi trả thực tế (TotalSpent) của các khách hàng sống tại Hanoi 
+--  đối với các đơn hàng đã giao thành công (Status = 'Shipped') và mua sản phẩm thuộc danh mục 'Electronics'.
+--  Hiển thị thông tin: Tên khách hàng (CustomerName), Email, và Tổng số tiền (TotalSpent). 
+--  Sắp xếp tổng tiền chi trả giảm dần (DESC)."
+--  Gợi ý: Ghép 4 bảng Customers, Orders, OrderDetails, và Products. 
+--        Lọc City = 'Hanoi' VÀ Status = 'Shipped' VÀ Category = 'Electronics' ở WHERE.
+--        Gom nhóm theo khách hàng và tính SUM(od.Quantity * od.UnitPrice). Sắp xếp giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #611] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn lọc ra danh sách các khách hàng trung thành mua hàng nhiều lần. 
+--  Hãy tìm tất cả các khách hàng có tổng số đơn hàng giao thành công (Status = 'Shipped') 
+--  nhiều hơn 1 đơn hàng (> 1).
+--  Hiển thị thông tin: Tên khách hàng (CustomerName), Email, và Tổng số đơn hàng thành công (TotalShippedOrders). 
+--  Sắp xếp theo số đơn hàng giảm dần (DESC)."
+--  Gợi ý: Ghép 2 bảng Customers và Orders qua CustomerID.
+--        Lọc Status = 'Shipped' ở WHERE.
+--        Gom nhóm theo khách hàng và tính COUNT(o.OrderID) làm TotalShippedOrders.
+--        Lọc nhóm ở HAVING: TotalShippedOrders > 1. Sắp xếp giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #612] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào bạn, hãy liệt kê danh sách toàn bộ các sản phẩm thuộc danh mục Thời trang ('Clothes' hoặc 'Shoes') 
+--  kèm theo tổng số khách hàng khác nhau (UniqueCustomersCount) đã từng mua sản phẩm đó.
+--  Lưu ý: Phải hiển thị đầy đủ tất cả sản phẩm thời trang, kể cả những sản phẩm chưa từng được ai mua 
+--  (với số lượng khách hàng hiển thị là 0). 
+--  Hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), Giá bán (Price), và Số khách mua (UniqueCustomersCount). 
+--  Sắp xếp theo giá bán giảm dần (DESC)."
+--  Gợi ý: Dùng LEFT JOIN từ Products sang OrderDetails, ghép tiếp sang Orders qua LEFT JOIN.
+--        Lọc Category IN ('Clothes', 'Shoes') ở WHERE.
+--        Gom nhóm theo sản phẩm và tính COALESCE(COUNT(DISTINCT o.CustomerID), 0). Sắp xếp theo giá giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+
+
+
+
+
+
 
