@@ -183,3 +183,82 @@ order by DaysFromJoinToOrder desc;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #607] (Yêu cầu từ Bộ phận Kho vận - Logistics Team)
+-- "Chào team Data, để tối ưu hóa quy trình đóng gói, hãy thống kê tổng số lượng sản phẩm 
+--  (TotalQuantitySold) và tổng số đơn hàng khác nhau (TotalOrdersCount) đối với các sản phẩm 
+--  thuộc danh mục Thời trang ('Clothes' hoặc 'Shoes') đã giao thành công (Status = 'Shipped') 
+--  cho các khách hàng sống tại thành phố Hà Nội (Hanoi).
+--  Hiển thị báo cáo gồm: Tên sản phẩm (ProductName), Danh mục (Category), Tổng số lượng đã bán, 
+--  và Tổng số đơn hàng chứa sản phẩm đó. Sắp xếp số lượng bán được giảm dần (DESC)."
+--  Gợi ý: Ghép 4 bảng Products, OrderDetails, Orders, và Customers. 
+--        Lọc Category IN ('Clothes', 'Shoes') VÀ Status = 'Shipped' VÀ City = 'Hanoi' ở WHERE.
+--        Gom nhóm theo ProductID, ProductName, Category.
+--        Tính SUM(od.Quantity) và COUNT(DISTINCT od.OrderID). Sắp xếp theo tổng lượng bán giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+SELECT p.ProductName, p.Category, SUM(od.Quantity) AS TotalQuantitySold, COUNT(DISTINCT od.OrderID) AS TotalOrdersCount
+FROM Products p
+INNER JOIN OrderDetails od ON p.ProductID = od.ProductID
+INNER JOIN Orders o ON od.OrderID = o.OrderID
+INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+WHERE p.Category IN ('Clothes', 'Shoes') AND o.Status = 'Shipped' AND c.City = 'Hanoi'
+GROUP BY p.ProductID, p.ProductName, p.Category
+ORDER BY TotalQuantitySold DESC;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #608] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chúng tôi muốn tìm các khách hàng có sức mua lớn. Hãy thống kê tổng số tiền chi trả thực tế 
+--  (TotalSpent) của các khách hàng thỏa mãn các điều kiện:
+--  1. Trạng thái đơn hàng là Đã giao hàng (Status = 'Shipped').
+--  2. Chỉ hiển thị các khách hàng có tổng số tiền chi trả từ 300 USD trở lên (>= 300).
+--  Hiển thị thông tin: Tên khách hàng (CustomerName), Email, và Tổng số tiền (TotalSpent). 
+--  Sắp xếp tổng tiền chi tiêu giảm dần (DESC)."
+--  Gợi ý: Ghép 3 bảng Customers, Orders, và OrderDetails.
+--        Lọc Status = 'Shipped' ở WHERE.
+--        Gom nhóm theo khách hàng và tính SUM(od.Quantity * od.UnitPrice) làm TotalSpent.
+--        Lọc nhóm ở HAVING: TotalSpent >= 300. Sắp xếp giảm dần.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+SELECT c.CustomerName, c.Email, SUM(od.Quantity * od.UnitPrice) AS TotalSpent
+FROM Customers c
+INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+WHERE o.Status = 'Shipped'
+GROUP BY c.CustomerID, c.CustomerName, c.Email
+HAVING TotalSpent >= 300
+ORDER BY TotalSpent DESC;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #609] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chào bạn, hãy liệt kê danh sách toàn bộ các khách hàng sống tại thành phố HCM 
+--  kèm theo tổng số lượng sản phẩm (TotalQuantitySold) mà họ đã mua tại cửa hàng (không phân biệt trạng thái đơn hàng). 
+--  Lưu ý: Phải hiển thị đầy đủ tất cả khách hàng sống tại HCM, kể cả những người chưa từng mua bất kỳ sản phẩm nào 
+--  (với tổng số lượng sản phẩm hiển thị là 0). 
+--  Hiển thị: Tên khách hàng (CustomerName), Email, Thành phố (City), và Tổng số lượng sản phẩm (TotalQuantitySold). 
+--  Sắp xếp theo tên khách hàng tăng dần (ASC)."
+--  Gợi ý: Dùng LEFT JOIN từ Customers sang Orders, ghép tiếp sang OrderDetails qua LEFT JOIN.
+--        Lọc City = 'HCM' ở WHERE. 
+--        Gom nhóm theo khách hàng và tính COALESCE(SUM(od.Quantity), 0). Sắp xếp tăng dần theo tên.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+SELECT c.CustomerName, c.Email, c.City, COALESCE(SUM(od.Quantity), 0) AS TotalQuantitySold
+FROM Customers c
+LEFT JOIN Orders o ON c.CustomerID = o.CustomerID
+LEFT JOIN OrderDetails od ON o.OrderID = od.OrderID
+WHERE c.City = 'HCM'
+GROUP BY c.CustomerID, c.CustomerName, c.Email, c.City
+ORDER BY c.CustomerName ASC;
+
+
+
+
+
