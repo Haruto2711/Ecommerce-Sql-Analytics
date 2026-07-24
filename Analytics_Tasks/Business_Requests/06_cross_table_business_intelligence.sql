@@ -274,7 +274,14 @@ ORDER BY c.CustomerName ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
+SELECT c.CustomerName, c.Email, SUM(od.Quantity * od.UnitPrice) AS TotalSpent
+FROM Customers c
+INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+INNER JOIN Products p ON od.ProductID = p.ProductID
+WHERE c.City = 'Hanoi' AND o.Status = 'Shipped' AND p.Category = 'Electronics'
+GROUP BY c.CustomerID, c.CustomerName, c.Email
+ORDER BY TotalSpent DESC;
 
 
 
@@ -292,7 +299,13 @@ ORDER BY c.CustomerName ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
+SELECT c.CustomerName, c.Email, COUNT(o.OrderID) AS TotalShippedOrders
+FROM Customers c
+INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+WHERE o.Status = 'Shipped'
+GROUP BY c.CustomerID, c.CustomerName, c.Email
+HAVING TotalShippedOrders > 1
+ORDER BY TotalShippedOrders DESC;
 
 
 
@@ -310,7 +323,13 @@ ORDER BY c.CustomerName ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
+SELECT p.ProductName, p.Category, p.Price, COALESCE(COUNT(DISTINCT o.CustomerID), 0) AS UniqueCustomersCount
+FROM Products p
+LEFT JOIN OrderDetails od ON p.ProductID = od.ProductID
+LEFT JOIN Orders o ON od.OrderID = o.OrderID
+WHERE p.Category IN ('Clothes', 'Shoes')
+GROUP BY p.ProductID, p.ProductName, p.Category, p.Price
+ORDER BY p.Price DESC;
 
 
 
