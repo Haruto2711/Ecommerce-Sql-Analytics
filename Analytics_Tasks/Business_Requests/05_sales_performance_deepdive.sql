@@ -174,3 +174,92 @@ WITH ProductSales AS (
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #507] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào bạn, hãy trích xuất danh sách các sản phẩm trong bảng Products có giá bán (Price) 
+--  cao hơn giá bán trung bình của chính danh mục (Category) đó nhé.
+--  Danh sách cần hiển thị: Mã sản phẩm (ProductID), Tên sản phẩm (ProductName), 
+--  Danh mục (Category), và Giá bán (Price)."
+--  Gợi ý: Sử dụng truy vấn con tương quan (Correlated Subquery) ở WHERE:
+--        WHERE Price > (SELECT AVG(Price) FROM Products p2 WHERE p2.Category = p.Category)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+Select p.ProductID, p.ProductName,p.Category,p.Price
+from products p
+where price > (select avg(price) from products p2 where p2.Category = p.Category); 
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #508] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn tìm các khách hàng ở HCM đã từng mua đơn hàng thành công (Shipped) 
+--  nhưng chưa từng mua bất kỳ sản phẩm nào thuộc danh mục thời trang 'Clothes' hoặc 'Shoes'.
+--  Báo cáo hiển thị: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Lọc City = 'HCM' ở WHERE.
+--  2. Sử dụng CustomerID IN (SELECT CustomerID FROM Orders WHERE Status = 'Shipped') để lọc khách có đơn thành công.
+--  3. Sử dụng CustomerID NOT IN (SELECT o.CustomerID FROM Orders o INNER JOIN OrderDetails od ON o.OrderID = od.OrderID INNER JOIN Products p ON od.ProductID = p.ProductID WHERE p.Category IN ('Clothes', 'Shoes')) để loại trừ nhóm khách hàng đã từng mua thời trang.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select CustomerID, CustomerName, Email
+from customers 
+Where City = 'HCM' 
+  and CustomerID IN (Select CustomerID from Orders Where Status = 'Shipped') 
+  and CustomerID NOT IN (
+      Select o.CustomerID 
+      from Orders o 
+      inner join orderdetails od ON o.OrderID = od.OrderID 
+      INNER JOIN Products p ON od.ProductID = p.ProductID 
+      WHERE p.Category IN ('Clothes', 'Shoes')
+  );
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #509] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead)
+-- "Hãy tính tổng doanh thu thực tế (CityRevenue) của từng thành phố đối với các đơn hàng Shipped 
+--  và hiển thị thêm tổng doanh thu của toàn bộ hệ thống (TotalSystemRevenue) để tiện so sánh tỷ trọng.
+--  Yêu cầu: Sử dụng CTE để tính tổng doanh thu từng thành phố trước, sau đó ở truy vấn chính, 
+--  sử dụng một truy vấn con đơn trị để tính tổng doanh thu toàn hệ thống.
+--  Báo cáo hiển thị: Thành phố (City), Doanh thu thành phố (CityRevenue), và Doanh thu toàn hệ thống (TotalSystemRevenue).
+--  Sắp xếp danh sách theo doanh thu thành phố giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE tính doanh thu từng thành phố:
+--     WITH CityRevenueCTE AS (
+--         SELECT c.City, SUM(od.Quantity * od.UnitPrice) AS CityRevenue
+--         FROM Customers c
+--         INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+--         INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+--         WHERE o.Status = 'Shipped'
+--         GROUP BY c.City
+--     )
+--  2. Truy vấn chính: SELECT City, CityRevenue, (SELECT SUM(od.Quantity * od.UnitPrice) FROM Orders o INNER JOIN OrderDetails od ON o.OrderID = od.OrderID WHERE o.Status = 'Shipped') AS TotalSystemRevenue FROM CityRevenueCTE.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH CityRevenueCTE AS (
+    SELECT c.City, SUM(od.Quantity * od.UnitPrice) AS CityRevenue
+    FROM Customers c
+    INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY c.City
+)
+SELECT City, CityRevenue,
+       (
+           SELECT SUM(od.Quantity * od.UnitPrice) 
+           FROM Orders o 
+           INNER JOIN OrderDetails od ON o.OrderID = od.OrderID 
+           WHERE o.Status = 'Shipped'
+       ) AS TotalSystemRevenue 
+FROM CityRevenueCTE
+ORDER BY CityRevenue DESC;
+
+
+
+
+
+
