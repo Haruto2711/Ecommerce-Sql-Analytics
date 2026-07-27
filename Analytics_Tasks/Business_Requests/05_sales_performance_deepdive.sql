@@ -261,5 +261,106 @@ ORDER BY CityRevenue DESC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #510] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để đánh giá mức giá các sản phẩm đang hiển thị trên web, em hãy trích xuất 
+--  danh sách các sản phẩm có giá bán (Price) cao hơn giá bán trung bình thực tế của toàn bộ các sản phẩm 
+--  được mua trong các đơn hàng đã giao thành công (Status = 'Shipped').
+--  Hiển thị thông tin: Mã sản phẩm (ProductID), Tên sản phẩm (ProductName), và Giá bán (Price)."
+--  Gợi ý: Sử dụng truy vấn con tính giá bán trung bình thực tế:
+--        SELECT AVG(od.UnitPrice) FROM OrderDetails od INNER JOIN Orders o ON od.OrderID = o.OrderID WHERE o.Status = 'Shipped'
+--        Và dùng WHERE Price > (...) ở truy vấn chính.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select ProductID, ProductName, Price
+from products
+where Price > (
+    select avg(od.UnitPrice) 
+    from orderdetails od 
+    inner join orders o ON od.OrderID = o.OrderID
+    where o.Status = 'Shipped'
+);
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #511] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn lọc ra các khách hàng VIP sống tại thành phố HCM để gửi voucher tri ân. 
+--  Hãy tìm các khách hàng ở HCM đã từng đặt ít nhất một đơn hàng có tổng giá trị đơn hàng 
+--  (Thành tiền đơn đặt hàng đó) lớn hơn giá trị trung bình của toàn bộ các đơn hàng Shipped trong hệ thống.
+--  Báo cáo hiển thị: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Lọc City = 'HCM' ở WHERE.
+--  2. Sử dụng CustomerID IN để lọc:
+--     - Truy vấn con tính tổng tiền từng đơn hàng: SUM(od.Quantity * od.UnitPrice) GROUP BY o.OrderID.
+--     - Dùng HAVING để so sánh tổng này với một truy vấn con tính giá trị trung bình của toàn bộ đơn Shipped.
+--     - Giá trị đơn hàng trung bình tính bằng: SELECT AVG(OrderTotal) FROM (SELECT SUM(od2.Quantity * od2.UnitPrice) AS OrderTotal FROM Orders o2 INNER JOIN OrderDetails od2 ON o2.OrderID = od2.OrderID WHERE o2.Status = 'Shipped' GROUP BY o2.OrderID) AS SubQuery.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+SELECT CustomerID, CustomerName, Email
+FROM Customers
+WHERE City = 'HCM'
+  AND CustomerID IN (
+      SELECT o.CustomerID
+      FROM Orders o
+      INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+      GROUP BY o.OrderID, o.CustomerID
+      HAVING SUM(od.Quantity * od.UnitPrice) > (
+          SELECT AVG(OrderTotal)
+          FROM (
+              SELECT SUM(od2.Quantity * od2.UnitPrice) AS OrderTotal
+              FROM Orders o2
+              INNER JOIN OrderDetails od2 ON o2.OrderID = od2.OrderID
+              WHERE o2.Status = 'Shipped'
+              GROUP BY o2.OrderID
+          ) AS SubQuery
+      )
+  );
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #512] (Yêu cầu từ Trưởng phòng Phân tích - Analytics Lead)
+-- "Chào em, để phục vụ báo cáo hiệu suất của sản phẩm, hãy lập danh sách hiển thị tên sản phẩm (ProductName), 
+--  danh mục sản phẩm (Category), và tỷ lệ phần trăm đóng góp doanh thu (RevenueContributionPercent) 
+--  của sản phẩm đó so với tổng doanh thu của toàn bộ danh mục sản phẩm của nó (chỉ tính đơn hàng Shipped).
+--  Yêu cầu: 
+--  1. Định nghĩa CTE thứ nhất (ProductRevenueCTE) để tính tổng doanh thu của từng sản phẩm.
+--  2. Định nghĩa CTE thứ hai (CategoryRevenueCTE) để tính tổng doanh thu của từng danh mục.
+--  3. Ở truy vấn chính: JOIN hai CTE trên qua danh mục sản phẩm (Category), thực hiện tính tỷ lệ phần trăm:
+--     ROUND((ProductRevenue / CategoryRevenue) * 100, 2) AS RevenueContributionPercent
+--  4. Sắp xếp kết quả theo danh mục sản phẩm tăng dần (ASC) và tỷ lệ phần trăm giảm dần (DESC)."
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH ProductRevenueCTE AS (
+    SELECT p.ProductID, p.ProductName, p.Category, SUM(od.Quantity * od.UnitPrice) AS ProductRevenue
+    FROM Products p
+    INNER JOIN OrderDetails od ON p.ProductID = od.ProductID
+    INNER JOIN Orders o ON od.OrderID = o.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY p.ProductID, p.ProductName, p.Category
+),
+CategoryRevenueCTE AS (
+    SELECT p2.Category, SUM(od2.Quantity * od2.UnitPrice) AS CategoryRevenue
+    FROM Products p2
+    INNER JOIN OrderDetails od2 ON p2.ProductID = od2.ProductID
+    INNER JOIN Orders o2 ON od2.OrderID = o2.OrderID
+    WHERE o2.Status = 'Shipped'
+    GROUP BY p2.Category
+)
+SELECT pr.ProductName, pr.Category,
+       ROUND((pr.ProductRevenue / cr.CategoryRevenue) * 100, 2) AS RevenueContributionPercent
+FROM ProductRevenueCTE pr
+INNER JOIN CategoryRevenueCTE cr ON pr.Category = cr.Category
+ORDER BY pr.Category ASC, RevenueContributionPercent DESC;
+
+
+
+
+
+
 
 
