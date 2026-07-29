@@ -360,6 +360,108 @@ ORDER BY pr.Category ASC, RevenueContributionPercent DESC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #513] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, hãy tìm tất cả các khách hàng sống tại thành phố Hà Nội (Hanoi) 
+--  có tổng chi tiêu thực tế (TotalSpent) lớn hơn mức chi tiêu trung bình của các khách hàng sống tại Đà Nẵng (Da Nang).
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Hiển thị thông tin: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Tổng chi tiêu (TotalSpent).
+--  Sắp xếp tổng tiền chi tiêu giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa một CTE tính tổng chi tiêu thực tế của từng khách hàng kèm theo thành phố của họ (Gom nhóm theo khách hàng và thành phố).
+--  2. Ở truy vấn chính: Lọc thành phố là 'Hanoi' và dùng truy vấn con ở WHERE để tính chi tiêu trung bình của khách hàng ở 'Da Nang' từ chính CTE đó.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With CustomerSpending AS (
+    Select c.CustomerID, c.CustomerName,c.City,
+    sum(od.Quantity * od.UnitPrice) as 'Total_Spent'
+    from customers c
+    inner join orders o
+    on c.CustomerID = o.CustomerID
+    inner join orderdetails od
+    on o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY c.CustomerID, c.CustomerName, c.City
+)
+Select CustomerID,CustomerName, Total_Spent
+From CustomerSpending
+Where City = 'Hanoi'
+And Total_Spent > (Select Avg(Total_Spent) 
+From CustomerSpending 
+Where City = 'Da Nang'
+)
+Order by Total_Spent desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #514] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn thiết kế quà tặng kèm công nghệ cho khách hàng. Hãy tìm tất cả các sản phẩm 
+--  thuộc danh mục Công nghệ/Điện tử (Category = 'Electronics') có tổng số lượng bán ra (TotalQuantitySold) 
+--  lớn hơn số lượng bán ra trung bình của tất cả các sản phẩm trong danh mục Thời trang ('Clothes' hoặc 'Shoes').
+--  Chỉ tính các đơn hàng giao thành công (Status = 'Shipped').
+--  Hiển thị thông tin: Mã sản phẩm (ProductID), Tên sản phẩm (ProductName), và Tổng số lượng bán ra.
+--  Sắp xếp số lượng bán ra giảm dần (DESC)."
+--  Gợi ý:
+--  1. Dùng CTE để tính tổng lượng bán ra thực tế của từng sản phẩm kèm danh mục của sản phẩm đó.
+--  2. Ở truy vấn chính: Chọn các sản phẩm thuộc danh mục 'Electronics' có số lượng bán lớn hơn trung bình số lượng bán của các sản phẩm danh mục 'Clothes', 'Shoes' (sử dụng truy vấn con từ chính CTE trên).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH ProductSales AS (
+    SELECT p.ProductID, p.ProductName, p.Category, COALESCE(SUM(od.Quantity), 0) AS TotalQuantitySold
+    FROM Products p
+    LEFT JOIN OrderDetails od ON p.ProductID = od.ProductID
+    LEFT JOIN Orders o ON od.OrderID = o.OrderID AND o.Status = 'Shipped'
+    GROUP BY p.ProductID, p.ProductName, p.Category
+)
+SELECT ProductID, ProductName, TotalQuantitySold
+FROM ProductSales
+WHERE Category = 'Electronics'
+  AND TotalQuantitySold > (
+      SELECT AVG(TotalQuantitySold)
+      FROM ProductSales
+      WHERE Category IN ('Clothes', 'Shoes')
+  )
+ORDER BY TotalQuantitySold DESC;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #515] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chúng tôi muốn kiểm tra các đơn hàng có nhiều mặt hàng hơn bình thường để tối ưu hóa nhân sự đóng gói. 
+--  Hãy tìm các đơn hàng có số lượng dòng sản phẩm khác nhau (UniqueProductsCount) 
+--  lớn hơn số lượng dòng sản phẩm khác nhau trung bình của toàn bộ các đơn hàng trong hệ thống.
+--  Hiển thị thông tin: Mã đơn hàng (OrderID), Tên khách hàng (CustomerName), và Số lượng dòng sản phẩm khác nhau (UniqueProductsCount).
+--  Sắp xếp theo số lượng dòng giảm dần (DESC)."
+--  Gợi ý:
+--  1. Dùng CTE (OrderItemCount) để tính số lượng mặt hàng khác nhau trong từng đơn hàng (Gom nhóm theo OrderID, CustomerID và COUNT(DISTINCT ProductID)).
+--  2. Ở truy vấn chính: INNER JOIN CTE này với bảng Customers để lấy tên khách hàng.
+--  3. Dùng WHERE để lọc số lượng mặt hàng lớn hơn giá trị trung bình (tính bằng truy vấn con AVG từ chính CTE).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH OrderItemCount AS (
+    SELECT o.OrderID, o.CustomerID, COUNT(DISTINCT od.ProductID) AS UniqueProductsCount
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    GROUP BY o.OrderID, o.CustomerID
+)
+SELECT oic.OrderID, c.CustomerName, oic.UniqueProductsCount
+FROM OrderItemCount oic
+INNER JOIN Customers c ON oic.CustomerID = c.CustomerID
+WHERE oic.UniqueProductsCount > (
+    SELECT AVG(UniqueProductsCount)
+    FROM OrderItemCount
+)
+ORDER BY oic.UniqueProductsCount DESC;
+
+
+
+
+
+
 
 
 
