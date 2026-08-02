@@ -460,6 +460,105 @@ ORDER BY oic.UniqueProductsCount DESC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #516] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để phục vụ đánh giá nhà cung cấp, hãy tìm các sản phẩm mang lại tổng doanh thu thực tế (ProductRevenue) 
+--  lớn hơn doanh thu trung bình của các sản phẩm thuộc cùng danh mục của chính nó nhé.
+--  Lưu ý: Chỉ tính doanh thu từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), và Doanh thu sản phẩm (ProductRevenue).
+--  Sắp xếp theo danh mục sản phẩm tăng dần (ASC) và doanh thu sản phẩm giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (ProductRevenueCTE) để tính tổng doanh thu từng sản phẩm: SUM(od.Quantity * od.UnitPrice).
+--  2. Ở truy vấn chính: Thực hiện truy vấn con tương quan để tính doanh thu trung bình của các sản phẩm thuộc cùng danh mục:
+--     WHERE ProductRevenue > (SELECT AVG(pr2.ProductRevenue) FROM ProductRevenueCTE pr2 WHERE pr2.Category = pr1.Category)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With ProductRevenueCTE as (
+  select p.ProductName, p.Category, sum(od.Quantity * od.UnitPrice) as 'ProductRevenue'
+  from products p
+  inner join orderdetails od on p.ProductID = od.ProductID
+  inner join orders o on od.OrderID = o.OrderID
+  where o.Status = 'Shipped'
+  group by p.ProductName, p.Category
+)
+select pr1.ProductName, pr1.Category, pr1.ProductRevenue
+from ProductRevenueCTE pr1
+Where pr1.ProductRevenue > (
+  Select AVG(pr2.ProductRevenue) 
+  from ProductRevenueCTE pr2
+  where pr2.Category = pr1.Category
+)
+order by pr1.Category asc, pr1.ProductRevenue desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #517] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chào bạn, hãy tìm tất cả các sản phẩm được đặt mua bởi khách hàng sống tại từ 3 thành phố khác nhau trở lên.
+--  Hiển thị thông tin: Tên sản phẩm (ProductName), Danh mục (Category), và Số lượng thành phố khác nhau (UniqueCitiesCount).
+--  Sắp xếp danh sách theo số lượng thành phố giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (ProductCityCount) để đếm số thành phố khác nhau của từng sản phẩm (Gom nhóm theo ProductID, đếm COUNT(DISTINCT c.City) sau khi join OrderDetails, Orders, Customers).
+--  2. Truy vấn chính: Ghép bảng Products với CTE này và lọc điều kiện UniqueCitiesCount >= 3 ở WHERE.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With ProductCityCount as (
+  select p.ProductName, p.Category, count(distinct c.City) as 'UniqueCitiesCount'
+  from products p
+  inner join orderdetails od on p.ProductID = od.ProductID
+  inner join orders o on od.OrderID = o.OrderID
+  inner join customers c on o.CustomerID = c.CustomerID
+  group by p.ProductName, p.Category
+)
+select ProductName, Category, UniqueCitiesCount
+from ProductCityCount 
+where UniqueCitiesCount >= 3
+order by UniqueCitiesCount desc;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #518] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chúng tôi muốn kiểm tra hành vi mua sắm của nhóm khách hàng mới gia nhập trong năm 2026 (JoinDate >= '2026-01-01').
+--  Hãy tìm các khách hàng mới 2026 có giá trị đơn hàng trung bình của họ (AverageOrderValue) 
+--  lớn hơn giá trị trung bình của toàn bộ các đơn đặt hàng thực tế trong hệ thống.
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên khách hàng (CustomerName), Email, và Chi tiêu trung bình mỗi đơn hàng (AverageOrderValue - làm tròn 2 chữ số thập phân).
+--  Sắp xếp chi tiêu trung bình giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (CustomerOrderTotal) tính tổng tiền của từng đơn hàng: SUM(od.Quantity * od.UnitPrice) GROUP BY o.OrderID, o.CustomerID.
+--  2. Định nghĩa CTE thứ hai (CustomerAOV) để tính giá trị trung bình mỗi đơn hàng của từng khách hàng: AVG(OrderTotal) GROUP BY CustomerID.
+--  3. Ở truy vấn chính: Ghép Customers với CustomerAOV qua CustomerID, lọc JoinDate >= '2026-01-01'.
+--  4. Dùng WHERE để lọc AverageOrderValue > (SELECT AVG(OrderTotal) FROM CustomerOrderTotal).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With CustomerOrderTotal as ( 
+   select o.OrderID, o.CustomerID, sum(od.Quantity * od.UnitPrice) as OrderTotal
+   from orders o
+   inner join orderdetails od on o.OrderID = od.OrderID
+   where o.Status = 'Shipped'
+   group by o.OrderID, o.CustomerID
+),
+ CustomerAOV as (
+select CustomerID, avg(OrderTotal) as AverageOrderValue
+from CustomerOrderTotal
+group by CustomerID
+)
+Select c.CustomerName, c.Email, Round(ca.AverageOrderValue, 2) as AverageOrderValue
+from customers c
+inner join CustomerAOV ca on c.CustomerID = ca.CustomerID
+where c.JoinDate >= '2026-01-01' 
+  and ca.AverageOrderValue > (
+      Select avg(OrderTotal) from CustomerOrderTotal
+  )
+order by AverageOrderValue desc;
+
+
+
+
+
 
 
 
