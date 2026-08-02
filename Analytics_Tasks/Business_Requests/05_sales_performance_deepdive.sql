@@ -558,6 +558,111 @@ order by AverageOrderValue desc;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #519] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
+-- "Chào bạn, hãy lập báo cáo danh sách các sản phẩm đóng góp hơn 30% doanh thu thực tế 
+--  của toàn bộ danh mục của chính sản phẩm đó.
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), Doanh thu sản phẩm (ProductRevenue), 
+--  và Tỷ lệ đóng góp (ContributionPercent - làm tròn 2 chữ số thập phân).
+--  Sắp xếp danh mục tăng dần (ASC) và tỷ lệ đóng góp giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (ProductRevenue) để tính doanh thu thực tế của từng sản phẩm.
+--  2. Định nghĩa CTE thứ hai (CategoryRevenue) để tính tổng doanh thu thực tế của từng danh mục sản phẩm (sử dụng SUM từ CTE thứ nhất).
+--  3. Ở truy vấn chính: JOIN hai CTE trên qua danh mục sản phẩm (Category).
+--  4. Lọc ở WHERE: Tỷ lệ phần trăm đóng góp: (ProductRevenue / CategoryRevenue) * 100 > 30.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH ProductRevenue AS (
+    SELECT p.ProductID, p.ProductName, p.Category, SUM(od.Quantity * od.UnitPrice) AS ProductRev
+    FROM Products p
+    INNER JOIN OrderDetails od ON p.ProductID = od.ProductID
+    INNER JOIN Orders o ON od.OrderID = o.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY p.ProductID, p.ProductName, p.Category
+),
+CategoryRevenue AS (
+    SELECT Category, SUM(ProductRev) AS CategoryRev
+    FROM ProductRevenue
+    GROUP BY Category
+)
+SELECT pr.ProductName, pr.Category, pr.ProductRev AS ProductRevenue,
+       ROUND((pr.ProductRev / cr.CategoryRev) * 100, 2) AS ContributionPercent
+FROM ProductRevenue pr
+INNER JOIN CategoryRevenue cr ON pr.Category = cr.Category
+WHERE (pr.ProductRev / cr.CategoryRev) * 100 > 30
+ORDER BY pr.Category ASC, ContributionPercent DESC;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #520] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn lọc ra nhóm khách hàng ở HCM để gửi khuyến mãi kích cầu.
+--  Hãy tìm các khách hàng ở HCM đã từng mua đơn hàng nhưng chưa từng đặt bất kỳ dòng sản phẩm đơn lẻ nào 
+--  có giá trị dòng lớn hơn giá trị dòng trung bình của toàn bộ các dòng sản phẩm có trong hệ thống.
+--  Báo cáo hiển thị: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Lọc City = 'HCM' ở WHERE.
+--  2. Sử dụng CustomerID IN để lọc khách đã từng mua hàng.
+--  3. Sử dụng CustomerID NOT IN kết hợp truy vấn con tính giá trị dòng sản phẩm:
+--     - Truy vấn con tính giá trị dòng trung bình hệ thống: SELECT AVG(Quantity * UnitPrice) FROM OrderDetails.
+--     - Truy vấn con thứ hai lấy CustomerID từ các đơn hàng có dòng sản phẩm (od.Quantity * od.UnitPrice) lớn hơn mức trung bình trên.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+SELECT CustomerID, CustomerName, Email
+FROM Customers
+WHERE City = 'HCM'
+  AND CustomerID IN (SELECT CustomerID FROM Orders)
+  AND CustomerID NOT IN (
+      SELECT o.CustomerID
+      FROM Orders o
+      INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+      WHERE od.Quantity * od.UnitPrice > (
+          SELECT AVG(od2.Quantity * od2.UnitPrice)
+          FROM OrderDetails od2
+      )
+  );
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #521] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Hãy tìm các khách hàng có tổng số lượng sản phẩm thực tế đã mua (TotalQuantityPurchased) 
+--  nhiều hơn mức mua trung bình của tất cả các khách hàng sống tại cùng một thành phố với họ.
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên khách hàng (CustomerName), Thành phố (City), và Tổng số lượng đã mua (TotalQuantityPurchased).
+--  Sắp xếp theo thành phố tăng dần (ASC) và số lượng giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (CustomerCityQuantity) tính tổng lượng sản phẩm mua thực tế của từng khách hàng kèm theo thành phố của họ (join Customers, Orders, OrderDetails).
+--  2. Ở truy vấn chính: Sử dụng truy vấn con tương quan để tính số lượng trung bình đã mua của các khách hàng sống tại cùng một thành phố:
+--     WHERE TotalQuantityPurchased > (SELECT AVG(ccq2.TotalQuantityPurchased) FROM CustomerCityQuantity ccq2 WHERE ccq2.City = ccq1.City)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+
+WITH CustomerCityQuantity AS (
+    SELECT c.CustomerID, c.CustomerName, c.City, SUM(od.Quantity) AS TotalQuantityPurchased
+    FROM Customers c
+    INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY c.CustomerID, c.CustomerName, c.City
+)
+SELECT ccq1.CustomerName, ccq1.City, ccq1.TotalQuantityPurchased
+FROM CustomerCityQuantity ccq1
+WHERE ccq1.TotalQuantityPurchased > (
+    SELECT AVG(ccq2.TotalQuantityPurchased)
+    FROM CustomerCityQuantity ccq2
+    WHERE ccq2.City = ccq1.City
+)
+ORDER BY ccq1.City ASC, ccq1.TotalQuantityPurchased DESC;
+
+
+
+
+
 
 
 
