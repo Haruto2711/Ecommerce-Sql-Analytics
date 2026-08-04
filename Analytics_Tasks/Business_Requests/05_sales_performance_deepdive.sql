@@ -662,6 +662,110 @@ ORDER BY ccq1.City ASC, ccq1.TotalQuantityPurchased DESC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #522] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để phục vụ rà soát các sản phẩm bán kém, hãy tìm các sản phẩm mang lại tổng doanh thu thực tế (ProductRevenue) 
+--  nhỏ hơn 10% doanh thu trung bình của các sản phẩm thuộc cùng danh mục của chính nó nhé.
+--  Yêu cầu hiển thị sản phẩm kể cả sản phẩm chưa bán được (với doanh thu hiển thị là 0).
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), và Doanh thu sản phẩm (ProductRevenue).
+--  Sắp xếp theo danh mục sản phẩm tăng dần (ASC) và doanh thu sản phẩm tăng dần (ASC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (ProductRevenueCTE) để tính doanh thu thực tế từng sản phẩm (dùng LEFT JOIN từ Products sang OrderDetails và Orders kèm o.Status = 'Shipped' ở ON).
+--  2. Ở truy vấn chính: Thực hiện truy vấn con tương quan để tính 10% doanh thu trung bình của danh mục đó:
+--     WHERE ProductRevenue < 0.1 * (SELECT AVG(pr2.ProductRevenue) FROM ProductRevenueCTE pr2 WHERE pr2.Category = pr1.Category)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With ProductRevenueCTE AS(
+    select p.ProductID, p.ProductName,p.Category, coalesce(sum(od.Quantity * od.UnitPrice), 0) as ProductRevenue
+    from products p
+    left join orderdetails od
+    on p.ProductID = od.ProductID
+    left join orders o
+    on od.OrderID = o.OrderID and o.Status ='Shipped'
+    group by p.ProductID,p.ProductName,p.Category
+)
+
+select ProductName, Category, ProductRevenue
+from ProductRevenueCTE pr1
+where ProductRevenue < 0.1 * (Select avg(pr2.ProductRevenue)
+from ProductRevenueCTE pr2
+where pr2.Category = pr1.Category)
+order by Category asc, 
+ProductRevenue asc;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #523] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn khảo sát khách hàng trẻ tuổi tiềm năng sống tại Hanoi. 
+--  Hãy tìm các khách hàng sống tại Hanoi có độ tuổi từ 30 trở xuống (Age <= 30) đã từng mua hàng 
+--  nhưng chưa từng mua bất kỳ sản phẩm nào có giá bán (Price) lớn hơn giá bán trung bình của danh mục của chính sản phẩm đó.
+--  Báo cáo hiển thị: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Lọc City = 'Hanoi' AND Age <= 30 ở WHERE.
+--  2. Lọc CustomerID IN (SELECT CustomerID FROM Orders) để lấy khách đã mua hàng.
+--  3. Lọc CustomerID NOT IN để loại trừ các khách hàng đã từng mua sản phẩm đắt hơn mức trung bình của danh mục:
+--     - Truy vấn con tương quan lấy ProductID có giá lớn hơn giá danh mục trung bình: p.Price > (SELECT AVG(p2.Price) FROM Products p2 WHERE p2.Category = p.Category).
+--     - Truy vấn con thứ hai lấy CustomerID đã từng mua các ProductID thỏa mãn điều kiện trên (join Orders và OrderDetails).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select CustomerID, CustomerName, Email
+from customers 
+where city = 'Hanoi' and age <= 30 and 
+CustomerID IN (Select CustomerID from Orders) 
+and CustomerID not in(
+ select o.CustomerID 
+ from orders o
+ inner join orderdetails od
+ on o.OrderID = od.OrderID
+ inner join products p
+ on od.ProductID = p.ProductID
+ Where p.Price > (Select avg(p2.Price)
+ from products p2 
+ where p2.Category = p.Category
+)
+);
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #524] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào em, để đánh giá hiệu suất đơn hàng lớn. Hãy tìm các đơn hàng có tổng giá trị đơn đặt hàng thực tế (OrderTotal) 
+--  lớn hơn giá trị trung bình của toàn bộ các đơn đặt hàng thực tế của những khách hàng sống cùng thành phố với khách hàng của đơn hàng đó.
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Mã đơn hàng (OrderID), Tên khách hàng (CustomerName), Thành phố (City), và Tổng giá trị đơn hàng (OrderTotal).
+--  Sắp xếp theo thành phố tăng dần (ASC) và tổng giá trị đơn hàng giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (CustomerOrderTotal) tính tổng tiền từng đơn hàng thực tế kèm thành phố và tên khách hàng (join Orders, OrderDetails, Customers, group by OrderID, CustomerID, City, CustomerName).
+--  2. Ở truy vấn chính: Thực hiện truy vấn con tương quan để tính giá trị trung bình của toàn bộ đơn hàng của những người sống cùng thành phố:
+--     WHERE cot1.OrderTotal > (SELECT AVG(cot2.OrderTotal) FROM CustomerOrderTotal cot2 WHERE cot2.City = cot1.City)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With CustomerOrderTotal As (
+  select o.OrderID,c.City, c.CustomerName, sum(od.Quantity * od.UnitPrice) as OrderTotal
+  from orders o
+  inner join orderdetails od
+  on o.OrderID = od.OrderID
+  inner join customers c
+  on o.CustomerID = c.CustomerID
+  where o.Status = 'Shipped'
+  group by o.OrderID, c.City, c.CustomerName
+)
+select cot1.OrderID, cot1.CustomerName, cot1.City, cot1.OrderTotal
+from CustomerOrderTotal cot1
+where cot1.OrderTotal > (Select avg(cot2.OrderTotal)
+from CustomerOrderTotal cot2
+Where cot2.City = cot1.City)
+order by cot1.City asc,
+cot1.OrderTotal desc; 
+
+
+
+
+
 
 
 
