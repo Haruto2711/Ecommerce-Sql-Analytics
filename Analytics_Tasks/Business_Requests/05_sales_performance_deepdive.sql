@@ -760,7 +760,111 @@ where cot1.OrderTotal > (Select avg(cot2.OrderTotal)
 from CustomerOrderTotal cot2
 Where cot2.City = cot1.City)
 order by cot1.City asc,
-cot1.OrderTotal desc; 
+cot1.OrderTotal desc;
+
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #525] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để phục vụ phân tích xu hướng mua sắm nhóm, hãy tìm các sản phẩm thuộc danh mục Thời trang ('Clothes' hoặc 'Shoes') 
+--  có tổng số lượng bán ra thực tế (TotalQuantitySold) lớn hơn số lượng bán ra trung bình của các sản phẩm thuộc danh mục Công nghệ ('Electronics').
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), và Tổng số lượng bán ra (TotalQuantitySold).
+--  Sắp xếp danh sách theo tổng số lượng bán ra giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (ProductSales) để tính tổng số lượng bán ra của từng sản phẩm kèm danh mục (LEFT JOIN từ Products sang OrderDetails, Orders kèm o.Status = 'Shipped').
+--  2. Ở truy vấn chính: Lọc Category IN ('Clothes', 'Shoes') và dùng truy vấn con để lấy số lượng bán trung bình của các sản phẩm thuộc danh mục 'Electronics' từ chính CTE trên:
+--     WHERE TotalQuantitySold > (SELECT AVG(TotalQuantitySold) FROM ProductSales WHERE Category = 'Electronics')
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With ProductSales as (
+  select p.ProductID, p.ProductName, p.Category, coalesce(sum(od.Quantity), 0) as TotalQuantitySold
+  from products p
+  left join orderdetails od on p.ProductID = od.ProductID
+  left join orders o on od.OrderID = o.OrderID and o.status = 'Shipped'
+  group by p.ProductID, p.ProductName, p.Category
+)
+select ProductName, Category, TotalQuantitySold
+from ProductSales
+where Category in ('Clothes', 'Shoes') and 
+TotalQuantitySold > (select avg(TotalQuantitySold)
+from ProductSales where Category = 'Electronics')
+order by TotalQuantitySold desc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #526] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn lọc ra nhóm khách hàng ở HCM để gửi khuyến mãi kích cầu đặc biệt.
+--  Hãy tìm các khách hàng ở HCM đã từng mua đơn hàng nhưng chưa từng đặt bất kỳ đơn hàng nào 
+--  có tổng trị giá đơn vượt quá giá trị đơn hàng trung bình của các khách hàng sống tại Đà Nẵng (Da Nang).
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Mã khách hàng (CustomerID), Tên khách hàng (CustomerName), và Email."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (OrderTotals) để tính tổng tiền của từng đơn hàng Shipped kèm theo CustomerID và City của khách hàng đó.
+--  2. Định nghĩa CTE thứ hai (DaNangAverage) để tính giá trị đơn hàng trung bình của khách hàng ở 'Da Nang' (SELECT AVG(OrderTotal) FROM OrderTotals WHERE City = 'Da Nang').
+--  3. Ở truy vấn chính: Lọc City = 'HCM' và CustomerID IN (SELECT CustomerID FROM Orders).
+--  4. Lọc CustomerID NOT IN để loại trừ các khách hàng đã từng mua đơn hàng vượt mức trung bình của Đà Nẵng:
+--     - SELECT ot.CustomerID FROM OrderTotals ot WHERE ot.OrderTotal > (SELECT AvgDaNangOrder FROM DaNangAverage)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With OrderTotals as (
+   select o.OrderID,o.CustomerID, c.City, sum(od.Quantity * od.UnitPrice) as OrderTotal
+   from orders o
+   inner join orderdetails od
+   on o.OrderID = od.OrderID
+   inner join customers c
+   on o.CustomerID = c.CustomerID
+   where o.status = 'Shipped'
+   group by o.OrderID, c.CustomerID, c.City
+),DaNangAverage as (
+   select avg(OrderTotal) as AvgDaNangOrder
+   from OrderTotals
+   where city = 'Da Nang'
+)
+select CustomerID, CustomerName,Email
+from customers
+where city = 'HCM' and CustomerID in (Select CustomerID from OrderTotals)
+and CustomerID not in (
+select ot.CustomerID
+from OrderTotals ot
+where ot.OrderTotal > (select AvgDaNangOrder from DaNangAverage));
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #527] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào em, để phục vụ tối ưu hóa vận hành, hãy tìm các đơn hàng có số lượng dòng sản phẩm khác nhau (UniqueProductsCount) 
+--  lớn hơn số lượng dòng sản phẩm trung bình của tất cả các đơn hàng thuộc khách hàng sống tại cùng một thành phố với đơn hàng đó.
+--  Báo cáo hiển thị: Mã đơn hàng (OrderID), Tên khách hàng (CustomerName), Thành phố (City), và Số lượng dòng sản phẩm khác nhau (UniqueProductsCount).
+--  Sắp xếp theo thành phố tăng dần (ASC) và số lượng dòng giảm dần (DESC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (OrderItemCount) tính số dòng sản phẩm của từng đơn hàng kèm theo thành phố và tên khách hàng (join Orders, OrderDetails, Customers, group by OrderID, CustomerID, City, CustomerName).
+--  2. Ở truy vấn chính: Sử dụng truy vấn con tương quan để tính số dòng trung bình của các đơn hàng thuộc cùng một thành phố:
+--     WHERE oic1.UniqueProductsCount > (SELECT AVG(oic2.UniqueProductsCount) FROM OrderItemCount oic2 WHERE oic2.City = oic1.City)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With OrderItemCount as(
+   select o.OrderID,c.CustomerName,c.City,count(distinct od.ProductID) as UniqueProductsCount
+   from orders o
+   inner join orderdetails od
+   on o.OrderID = od.OrderID
+   inner join customers c
+   on o.CustomerID = c.CustomerID
+   group by o.OrderID,c.CustomerName,c.City
+)
+select OrderID, CustomerName,City, UniqueProductsCount
+from OrderItemCount oic1
+where oic1.UniqueProductsCount > 
+(Select avg(oic2.UniqueProductsCount)
+from OrderItemCount oic2
+where oic2.city = oic1.city)
+ORDER BY oic1.City ASC, oic1.UniqueProductsCount DESC;
+ 
 
 
 
