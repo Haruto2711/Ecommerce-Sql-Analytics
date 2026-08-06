@@ -131,48 +131,7 @@ ORDER BY c.CustomerName, o.OrderDate;
 
 
 
--- --------------------------------------------------------------------
--- [TICKET #702] (Yêu cầu từ Bộ phận Tài chính - Finance Team)
--- "Chào bạn, bộ phận tài chính cần lập biểu đồ theo dõi doanh thu lũy kế cộng dồn theo ngày 
---  của toàn bộ hệ thống để báo cáo cho Ban Giám đốc (chỉ tính đơn hàng Shipped).
---  Em hãy trích xuất danh sách gồm: Ngày đặt hàng (OrderDate), Doanh thu trong ngày (DailyRevenue), 
---  và Doanh thu lũy kế (RunningTotal) tăng dần theo ngày đặt hàng.
---  Sử dụng CTE để gom nhóm tính doanh thu theo từng ngày trước, sau đó dùng hàm cửa sổ tính lũy kế."
---  Gợi ý:
---  1. Định nghĩa CTE (DailyRevenueCTE) gom nhóm tính SUM(od.Quantity * od.UnitPrice) GROUP BY o.OrderDate.
---  2. Ở truy vấn chính: SELECT OrderDate, DailyRevenue, SUM(DailyRevenue) OVER (ORDER BY OrderDate ASC) AS RunningTotal FROM DailyRevenueCTE.
--- --------------------------------------------------------------------
 
--- SQL query của bạn:
-WITH DailyRevenueCTE AS (
-    SELECT o.OrderDate, SUM(od.Quantity * od.UnitPrice) AS DailyRevenue
-    FROM Orders o
-    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
-    WHERE o.Status = 'Shipped'
-    GROUP BY o.OrderDate
-)
-SELECT OrderDate, DailyRevenue,
-       SUM(DailyRevenue) OVER (ORDER BY OrderDate ASC) AS RunningTotal
-FROM DailyRevenueCTE;
-
-
-
--- --------------------------------------------------------------------
--- [TICKET #703] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
--- "Chúng tôi muốn kiểm tra hành vi mua sắm lặp lại của khách hàng. Bạn hãy lập báo cáo hiển thị 
---  từng đơn đặt hàng kèm theo ngày đặt đơn hàng trước đó (PreviousOrderDate) của khách hàng đó nhé.
---  Hiển thị thông tin: Tên khách hàng (CustomerName), Mã đơn hàng (OrderID), Ngày đặt đơn hiện tại (OrderDate), 
---  và Ngày đặt đơn hàng trước đó (PreviousOrderDate).
---  Sắp xếp kết quả theo Tên khách hàng tăng dần (ASC) và Ngày đặt đơn tăng dần (ASC)."
---  Gợi ý: Sử dụng hàm LAG(o.OrderDate) OVER (PARTITION BY o.CustomerID ORDER BY o.OrderDate ASC)
--- --------------------------------------------------------------------
-
--- SQL query của bạn:
-SELECT c.CustomerName, o.OrderID, o.OrderDate,
-       LAG(o.OrderDate) OVER (PARTITION BY o.CustomerID ORDER BY o.OrderDate ASC) AS PreviousOrderDate
-FROM Orders o
-INNER JOIN Customers c ON o.CustomerID = c.CustomerID
-ORDER BY c.CustomerName, o.OrderDate;
 
 
 
