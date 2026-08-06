@@ -88,6 +88,18 @@ ORDER BY c.CustomerName, o.OrderDate;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
+WITH CustomerSpending AS (
+    SELECT c.CustomerID, c.CustomerName, c.City, SUM(od.Quantity * od.UnitPrice) AS TotalSpent
+    FROM Customers c
+    INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY c.CustomerID, c.CustomerName, c.City
+)
+SELECT CustomerName, City, TotalSpent,
+       RANK() OVER (PARTITION BY City ORDER BY TotalSpent DESC) AS CustomerRank
+FROM CustomerSpending
+ORDER BY City ASC, CustomerRank ASC;
 
 
 
@@ -106,6 +118,16 @@ ORDER BY c.CustomerName, o.OrderDate;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
+WITH OrderLeadLag AS (
+    SELECT c.CustomerName, o.OrderID, o.CustomerID, o.OrderDate,
+           LAG(o.OrderDate) OVER (PARTITION BY o.CustomerID ORDER BY o.OrderDate ASC) AS PreviousOrderDate
+    FROM Orders o
+    INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+)
+SELECT CustomerName, OrderID, OrderDate, PreviousOrderDate,
+       DATEDIFF(OrderDate, PreviousOrderDate) AS DaysBetweenOrders
+FROM OrderLeadLag
+ORDER BY CustomerName ASC, OrderDate ASC;
 
 
 
@@ -125,6 +147,18 @@ ORDER BY c.CustomerName, o.OrderDate;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
+WITH OrderRevenues AS (
+    SELECT o.OrderID, o.CustomerID, c.CustomerName, SUM(od.Quantity * od.UnitPrice) AS OrderRevenue
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.Status = 'Shipped'
+    GROUP BY o.OrderID, o.CustomerID, c.CustomerName
+)
+SELECT CustomerName, OrderID, OrderRevenue,
+       ROUND((OrderRevenue / SUM(OrderRevenue) OVER (PARTITION BY CustomerID)) * 100, 2) AS OrderRevenueContributionPercent
+FROM OrderRevenues
+ORDER BY CustomerName ASC, OrderRevenueContributionPercent DESC;
 
 
 
