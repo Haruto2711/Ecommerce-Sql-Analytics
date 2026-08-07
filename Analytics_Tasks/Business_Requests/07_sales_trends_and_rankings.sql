@@ -163,6 +163,97 @@ ORDER BY CustomerName ASC, OrderRevenueContributionPercent DESC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #707] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để đánh giá dòng sản phẩm bán chạy nhất tại từng danh mục, hãy tìm top 2 sản phẩm 
+--  mang lại tổng doanh thu thực tế (ProductRevenue) cao nhất trong từng danh mục (Category) sản phẩm nhé.
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên sản phẩm (ProductName), Danh mục (Category), Doanh thu sản phẩm (ProductRevenue), 
+--  và Xếp hạng doanh thu trong danh mục (RevenueRank).
+--  Sắp xếp theo Danh mục tăng dần (ASC) và Xếp hạng doanh thu tăng dần (ASC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (ProductRevenueCTE) để tính tổng doanh thu từng sản phẩm.
+--  2. Định nghĩa CTE thứ hai (RankedProducts) sử dụng ROW_NUMBER() OVER (PARTITION BY Category ORDER BY ProductRevenue DESC) để xếp hạng doanh thu.
+--  3. Truy vấn chính: Lọc điều kiện xếp hạng <= 2 ở WHERE.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With ProductRevenueCTE as (
+  select p.ProductName, p.Category, sum(od.Quantity * od.UnitPrice) as ProductRevenue
+  from products p
+  inner join orderdetails od on p.ProductID = od.ProductID
+  inner join orders o on od.OrderID = o.OrderID
+  where o.Status = 'Shipped'
+  group by p.ProductID, p.ProductName, p.Category
+),
+RankedProducts as (
+   select ProductName, Category, ProductRevenue,
+          ROW_NUMBER() OVER (PARTITION BY Category ORDER BY ProductRevenue DESC) as RevenueRank
+   from ProductRevenueCTE
+)
+select ProductName, Category, ProductRevenue, RevenueRank
+from RankedProducts
+where RevenueRank <= 2
+order by Category asc, RevenueRank asc;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #708] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn xem sự thay đổi doanh số bán ra của sản phẩm so với lần bán thành công ngay trước đó.
+--  Hãy lập báo cáo hiển thị từng dòng chi tiết đơn hàng Shipped gồm: 
+--  Tên sản phẩm (ProductName), Mã đơn hàng (OrderID), Ngày đặt đơn (OrderDate), 
+--  Số lượng bán hiện tại (CurrentQuantity), và Số lượng bán của sản phẩm đó ở lần bán Shipped ngay trước đó (PreviousQuantity).
+--  Sắp xếp kết quả theo Tên sản phẩm tăng dần (ASC) và Ngày đặt đơn tăng dần (ASC)."
+--  Gợi ý: Sử dụng hàm LAG(od.Quantity) OVER (PARTITION BY od.ProductID ORDER BY o.OrderDate ASC, o.OrderID ASC)
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+Select p.ProductName,o.OrderID, o.OrderDate,od.Quantity as CurrentQuantity,
+LAG(od.Quantity) OVER (PARTITION BY od.ProductID ORDER BY o.OrderDate ASC, o.OrderID ASC) 
+as PreviousQuantity
+from products p
+inner join orderdetails od
+on p.ProductID = od.ProductID
+inner join orders o
+on od.OrderID = o.OrderID
+where o.status = 'Shipped'
+Order by p.ProductName asc, o.OrderDate asc;
+
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #709] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào em, để đánh giá mức độ ổn định mua sắm của khách hàng, hãy tính doanh thu trung bình di động (Moving Average) 
+--  của 3 đơn hàng gần nhất của từng khách hàng (bao gồm đơn hàng hiện tại và tối đa 2 đơn hàng trước đó).
+--  Chỉ tính doanh số từ các đơn hàng giao thành công (Status = 'Shipped').
+--  Báo cáo hiển thị: Tên khách hàng (CustomerName), Mã đơn hàng (OrderID), Ngày đặt đơn (OrderDate), 
+--  Doanh thu đơn hàng hiện tại (OrderRevenue), và Doanh thu trung bình di động 3 đơn (MovingAverage3Orders - làm tròn 2 chữ số thập phân).
+--  Sắp xếp theo tên khách hàng tăng dần (ASC) và ngày đặt đơn tăng dần (ASC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE (OrderRevenues) tính tổng tiền từng đơn hàng thực tế của khách hàng (SUM(od.Quantity * od.UnitPrice)).
+--  2. Ở truy vấn chính: Sử dụng AVG(OrderRevenue) OVER (PARTITION BY CustomerID ORDER BY OrderDate ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) để tính trung bình di động.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH OrderRevenues AS (
+    SELECT o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate, SUM(od.Quantity * od.UnitPrice) AS OrderRevenue
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.Status = 'Shipped'
+    GROUP BY o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate
+)
+SELECT CustomerName, OrderID, OrderDate, OrderRevenue,
+       ROUND(AVG(OrderRevenue) OVER (PARTITION BY CustomerID ORDER BY OrderDate ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS MovingAverage3Orders
+FROM OrderRevenues
+ORDER BY CustomerName ASC, OrderDate ASC;
+
+
+
+
+
+
+
 
 
 
