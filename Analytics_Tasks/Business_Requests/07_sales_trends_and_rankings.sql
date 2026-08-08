@@ -265,9 +265,22 @@ ORDER BY CustomerName ASC, OrderDate ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
-
-
+WITH MonthlyRevenueCTE AS (
+    SELECT DATE_FORMAT(o.OrderDate, '%Y-%m') AS YearMonth, SUM(od.Quantity * od.UnitPrice) AS MonthlyRevenue
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m')
+),
+MonthlyGrowthCTE AS (
+    SELECT YearMonth, MonthlyRevenue,
+           LAG(MonthlyRevenue) OVER (ORDER BY YearMonth ASC) AS PreviousMonthlyRevenue
+    FROM MonthlyRevenueCTE
+)
+SELECT YearMonth, MonthlyRevenue, PreviousMonthlyRevenue,
+       ROUND(((MonthlyRevenue - PreviousMonthlyRevenue) / PreviousMonthlyRevenue) * 100, 2) AS GrowthRatePercent
+FROM MonthlyGrowthCTE
+ORDER BY YearMonth ASC;
 
 -- --------------------------------------------------------------------
 -- [TICKET #711] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
@@ -282,8 +295,23 @@ ORDER BY CustomerName ASC, OrderDate ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
-
+With CustomerSpending as (
+  select c.CustomerID, c.CustomerName, c.City, sum(od.Quantity * od.UnitPrice) as TotalSpent
+   from customers c
+   inner join orders o on c.CustomerID = o.CustomerID
+   inner join orderdetails od on o.OrderID = od.OrderID
+   where o.Status = 'Shipped'
+   group by c.CustomerID, c.CustomerName, c.City
+),
+RankedCustomers as (
+  select CustomerName, City, TotalSpent,
+  ROW_NUMBER() OVER (PARTITION BY City ORDER BY TotalSpent DESC) AS SpendRank
+  from CustomerSpending
+)
+Select CustomerName, City, TotalSpent
+from RankedCustomers
+Where SpendRank = 1
+order by City asc;
 
 
 -- --------------------------------------------------------------------
@@ -301,8 +329,24 @@ ORDER BY CustomerName ASC, OrderDate ASC;
 -- --------------------------------------------------------------------
 
 -- SQL query của bạn:
-
-
+WITH CustomerOrderQuantities AS (
+    SELECT o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate, SUM(od.Quantity) AS TotalQty
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.Status = 'Shipped'
+    GROUP BY o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate
+),
+LaggedQuantities AS (
+    SELECT CustomerName, OrderID, OrderDate, TotalQty AS CurrentQty,
+           LAG(TotalQty) OVER (PARTITION BY CustomerID ORDER BY OrderDate ASC, OrderID ASC) AS PreviousQty
+    FROM CustomerOrderQuantities
+)
+SELECT CustomerName, OrderID, CurrentQty, PreviousQty,
+       (PreviousQty - CurrentQty) AS QtyDrop
+FROM LaggedQuantities
+WHERE PreviousQty IS NOT NULL AND (PreviousQty - CurrentQty) >= 3
+ORDER BY CustomerName ASC;
 
 
 
