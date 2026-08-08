@@ -251,6 +251,107 @@ ORDER BY CustomerName ASC, OrderDate ASC;
 
 
 
+-- --------------------------------------------------------------------
+-- [TICKET #710] (Yêu cầu từ Bộ phận Kinh doanh - Sales Lead)
+-- "Chào em, để đánh giá mức độ tăng trưởng doanh thu theo từng tháng, hãy tính doanh thu thực tế 
+--  của từng tháng và tỷ lệ tăng trưởng doanh thu (%) so với tháng liền trước (chỉ tính đơn hàng Shipped).
+--  Báo cáo hiển thị: Tháng (YearMonth - định dạng YYYY-MM), Doanh thu tháng hiện tại (MonthlyRevenue), 
+--  Doanh thu tháng trước (PreviousMonthlyRevenue), và Tỷ lệ tăng trưởng (GrowthRatePercent - làm tròn 2 chữ số thập phân).
+--  Sắp xếp theo tháng tăng dần (ASC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (MonthlyRevenueCTE) gom nhóm tính tổng doanh thu theo tháng: DATE_FORMAT(o.OrderDate, '%Y-%m') và SUM(od.Quantity * od.UnitPrice).
+--  2. Định nghĩa CTE thứ hai (MonthlyGrowthCTE) sử dụng LAG(MonthlyRevenue) OVER (ORDER BY YearMonth ASC) để lấy doanh thu tháng trước.
+--  3. Truy vấn chính: Tính phần trăm tăng trưởng: ROUND(((MonthlyRevenue - PreviousMonthlyRevenue) / PreviousMonthlyRevenue) * 100, 2).
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH MonthlyRevenueCTE AS (
+    SELECT DATE_FORMAT(o.OrderDate, '%Y-%m') AS YearMonth, SUM(od.Quantity * od.UnitPrice) AS MonthlyRevenue
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    WHERE o.Status = 'Shipped'
+    GROUP BY DATE_FORMAT(o.OrderDate, '%Y-%m')
+),
+MonthlyGrowthCTE AS (
+    SELECT YearMonth, MonthlyRevenue,
+           LAG(MonthlyRevenue) OVER (ORDER BY YearMonth ASC) AS PreviousMonthlyRevenue
+    FROM MonthlyRevenueCTE
+)
+SELECT YearMonth, MonthlyRevenue, PreviousMonthlyRevenue,
+       ROUND(((MonthlyRevenue - PreviousMonthlyRevenue) / PreviousMonthlyRevenue) * 100, 2) AS GrowthRatePercent
+FROM MonthlyGrowthCTE
+ORDER BY YearMonth ASC;
+
+-- --------------------------------------------------------------------
+-- [TICKET #711] (Yêu cầu từ Trưởng phòng Marketing - Marketing Lead)
+-- "Chúng tôi muốn xác định khách hàng có doanh số đóng góp lớn nhất (TOP 1) tại mỗi thành phố 
+--  để lên kế hoạch tặng quà tri ân đặc biệt (chỉ tính doanh số từ các đơn hàng Shipped).
+--  Báo cáo hiển thị: Tên khách hàng (CustomerName), Thành phố (City), và Tổng chi tiêu thực tế (TotalSpent).
+--  Sắp xếp danh sách theo Thành phố tăng dần (ASC)."
+--  Gợi ý:
+--  1. Dùng CTE (CustomerSpending) để tính tổng chi tiêu thực tế của từng khách hàng kèm theo thành phố của họ.
+--  2. Dùng CTE thứ hai (RankedCustomers) xếp hạng khách hàng trong từng thành phố bằng ROW_NUMBER() OVER (PARTITION BY City ORDER BY TotalSpent DESC) AS SpendRank.
+--  3. Ở truy vấn chính: Lọc điều kiện SpendRank = 1.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+With CustomerSpending as (
+  select c.CustomerID, c.CustomerName, c.City, sum(od.Quantity * od.UnitPrice) as TotalSpent
+   from customers c
+   inner join orders o on c.CustomerID = o.CustomerID
+   inner join orderdetails od on o.OrderID = od.OrderID
+   where o.Status = 'Shipped'
+   group by c.CustomerID, c.CustomerName, c.City
+),
+RankedCustomers as (
+  select CustomerName, City, TotalSpent,
+  ROW_NUMBER() OVER (PARTITION BY City ORDER BY TotalSpent DESC) AS SpendRank
+  from CustomerSpending
+)
+Select CustomerName, City, TotalSpent
+from RankedCustomers
+Where SpendRank = 1
+order by City asc;
+
+
+-- --------------------------------------------------------------------
+-- [TICKET #712] (Yêu cầu từ Giám đốc Dịch vụ Khách hàng - CS Director)
+-- "Chào em, để phục vụ việc chăm sóc khách hàng đặc biệt, hãy tìm các khách hàng có sự sụt giảm lớn 
+--  về tổng số lượng sản phẩm đã mua ở đơn hàng Shipped gần nhất so với đơn hàng Shipped ngay trước đó của chính họ 
+--  (số lượng mua ở đơn gần nhất ít hơn đơn trước đó từ 3 sản phẩm trở lên).
+--  Báo cáo hiển thị: Tên khách hàng (CustomerName), Mã đơn hàng (OrderID), Số lượng đơn hiện tại (CurrentQty), 
+--  Số lượng đơn trước (PreviousQty), và Số lượng sản phẩm sụt giảm (QtyDrop).
+--  Sắp xếp kết quả theo tên khách hàng tăng dần (ASC)."
+--  Gợi ý:
+--  1. Định nghĩa CTE thứ nhất (CustomerOrderQuantities) tính tổng số lượng sản phẩm của từng đơn hàng Shipped của mỗi khách hàng.
+--  2. Định nghĩa CTE thứ hai (LaggedQuantities) lấy lượng sản phẩm đơn trước đó bằng LAG(TotalQty) OVER (PARTITION BY CustomerID ORDER BY OrderDate ASC, OrderID ASC).
+--  3. Ở truy vấn chính: Lọc điều kiện (PreviousQty - CurrentQty) >= 3.
+-- --------------------------------------------------------------------
+
+-- SQL query của bạn:
+WITH CustomerOrderQuantities AS (
+    SELECT o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate, SUM(od.Quantity) AS TotalQty
+    FROM Orders o
+    INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+    INNER JOIN Customers c ON o.CustomerID = c.CustomerID
+    WHERE o.Status = 'Shipped'
+    GROUP BY o.OrderID, o.CustomerID, c.CustomerName, o.OrderDate
+),
+LaggedQuantities AS (
+    SELECT CustomerName, OrderID, OrderDate, TotalQty AS CurrentQty,
+           LAG(TotalQty) OVER (PARTITION BY CustomerID ORDER BY OrderDate ASC, OrderID ASC) AS PreviousQty
+    FROM CustomerOrderQuantities
+)
+SELECT CustomerName, OrderID, CurrentQty, PreviousQty,
+       (PreviousQty - CurrentQty) AS QtyDrop
+FROM LaggedQuantities
+WHERE PreviousQty IS NOT NULL AND (PreviousQty - CurrentQty) >= 3
+ORDER BY CustomerName ASC;
+
+
+
+
+
 
 
 
